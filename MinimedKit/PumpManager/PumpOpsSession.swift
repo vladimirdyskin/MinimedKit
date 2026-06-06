@@ -508,6 +508,48 @@ extension PumpOpsSession {
     ///   - .success: A bool that indicates if the dose was confirmed successful
     ///   - .failure: An error describing why the command failed
     public func setTempBasal(_ unitsPerHour: Double, duration: TimeInterval) -> Result<Bool,PumpCommandError> {
+        // Настойчивый retry: повторяем только то, что ДОКАЗАННО не применилось.
+        // Temp basal идемпотентна по эффекту (новая заменяет предыдущую), поэтому
+        // безопасна для повтора при comms-ошибках. Повтор НЕ делаем, если помпа
+        // отвергла команду логически (pumpError / suspended / bolusInProgress) —
+        // там повтор не поможет. setTempBasalOnce уже верифицирует через readTempBasal.
+        let maxAttempts = 4
+        let backoffsUsec: [UInt32] = [500_000, 1_000_000, 2_000_000]
+        var attempt = 0
+        var last = setTempBasalOnce(unitsPerHour, duration: duration)
+        while attempt < maxAttempts - 1 {
+            switch last {
+            case .success(true):
+                return last
+            case let .failure(error) where Self.isPumpRejection(error):
+                return last
+            default:
+                break // comms-сбой / uncertain / read-back mismatch → ретраим
+            }
+            usleep(backoffsUsec[min(attempt, backoffsUsec.count - 1)])
+            attempt += 1
+            NSLog("setTempBasal persistent retry, attempt %d/%d", attempt + 1, maxAttempts)
+            last = setTempBasalOnce(unitsPerHour, duration: duration)
+        }
+        return last
+    }
+
+    /// True, если помпа отвергла команду логически — повтор бессмыслен.
+    private static func isPumpRejection(_ error: PumpCommandError) -> Bool {
+        let opsError: PumpOpsError
+        switch error {
+        case let .command(e), let .arguments(e):
+            opsError = e
+        }
+        switch opsError {
+        case .pumpError, .unknownPumpErrorCode, .pumpSuspended, .bolusInProgress:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private func setTempBasalOnce(_ unitsPerHour: Double, duration: TimeInterval) -> Result<Bool,PumpCommandError> {
 
         let message = PumpMessage(pumpID: settings.pumpID, type: .changeTempBasal, body: ChangeTempBasalCarelinkMessageBody(unitsPerHour: unitsPerHour, duration: duration))
 
