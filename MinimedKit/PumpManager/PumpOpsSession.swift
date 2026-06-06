@@ -109,7 +109,7 @@ extension PumpOpsSession {
         }
 
         do {
-            let _: PumpAckMessageBody = try messageSender.getResponse(to: shortPowerMessage, responseType: .pumpAck, repeatCount: 255, timeout: .seconds(12), retryCount: 0)
+            let _: PumpAckMessageBody = try messageSender.getResponse(to: shortPowerMessage, responseType: .pumpAck, repeatCount: 255, timeout: .seconds(12), retryCount: 1)
         } catch let error as PumpOpsError {
             throw PumpCommandError.command(error)
         }

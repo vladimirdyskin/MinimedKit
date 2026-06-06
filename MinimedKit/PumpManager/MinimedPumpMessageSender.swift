@@ -22,7 +22,7 @@ private let log = OSLog(category: "MinimedPumpMessageSender")
 
 struct MinimedPumpMessageSender: PumpMessageSender {
 
-    static let standardPumpResponseWindow: TimeInterval = .milliseconds(200)
+    static let standardPumpResponseWindow: TimeInterval = .milliseconds(300)
 
     var commandSession: CommandSession
     weak var commsLogger: CommsLogger?
