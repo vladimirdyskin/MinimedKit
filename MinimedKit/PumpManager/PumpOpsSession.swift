@@ -637,6 +637,77 @@ extension PumpOpsSession {
         }
     }
 
+    /// Минимальная доза, при которой ретрай неопределённого болюса опирается на
+    /// аппаратную защиту помпы. Болюс этого размера льётся достаточно долго
+    /// (≈40 сек на новых помпах), чтобы повторное чтение статуса гарантированно
+    /// застало bolusing=true, если болюс реально пошёл. Микроболюсы (< порога)
+    /// доставляются за секунды — окно защиты ненадёжно, их не ретраим.
+    private static let bolusUncertainRetryMinUnits = 0.5
+
+    /// Настойчивый болюс БЕЗ риска передозировки.
+    ///
+    /// Опора — контракт SetBolusError:
+    ///  - `.certain`   = болюс ТОЧНО не доставлен (сбой до отправки / помпа отвергла).
+    ///  - `.uncertain` = аргументы ушли, ACK потерян — болюс МОГ начаться.
+    ///  - `nil`        = успех (ACK).
+    ///
+    /// `.certain(comms)` повторяем свободно (доставки не было). `.certain(rejection)`
+    /// не повторяем (помпа занята/на паузе/логический отказ). `.uncertain` НЕ шлём
+    /// вслепую — читаем статус помпы: bolusing=true → болюс реально идёт (успех, IOB
+    /// корректный, дубля нет); bolusing=false на достаточно длинном болюсе → доставки
+    /// не было → повтор безопасен; короткий болюс/нечитаемый статус → оставляем как есть.
+    public func setNormalBolus(units: Double) -> SetBolusError? {
+        let maxAttempts = 3
+        var attempt = 0
+        var last = setNormalBolusOnce(units: units)
+        while attempt < maxAttempts - 1 {
+            switch last {
+            case .none:
+                return nil // ACK — успех
+            case let .some(.certain(error)):
+                if Self.isBolusRejection(error) {
+                    return last // помпа отвергла/занята — повтор не поможет
+                }
+                usleep(500_000) // .certain(comms) — болюс точно не ушёл, пауза и повтор
+            case .some(.uncertain):
+                // Болюс МОГ начаться. Микроболюс льётся секунды → окно защиты ненадёжно.
+                guard units >= Self.bolusUncertainRetryMinUnits else { return last }
+                switch verifyBolusInProgress() {
+                case .some(true):
+                    return nil // реально льётся → успех, дубля нет
+                case .some(false):
+                    break // длинный болюс и не начался → доставки не было → повтор безопасен
+                case .none:
+                    return last // статус не прочёлся → не рискуем
+                }
+            }
+            attempt += 1
+            NSLog("setNormalBolus persistent retry, attempt %d/%d", attempt + 1, maxAttempts)
+            last = setNormalBolusOnce(units: units)
+        }
+        return last
+    }
+
+    /// True, если помпа отвергла болюс логически — повтор бессмыслен.
+    private static func isBolusRejection(_ error: PumpOpsError) -> Bool {
+        switch error {
+        case .pumpError, .unknownPumpErrorCode, .pumpSuspended, .bolusInProgress:
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// Идемпотентная проверка: льётся ли сейчас болюс. nil — статус не удалось прочитать.
+    private func verifyBolusInProgress() -> Bool? {
+        do {
+            try wakeup()
+            return try getPumpStatus().bolusing
+        } catch {
+            return nil
+        }
+    }
+
     /// Sets a bolus
     ///
     /// *Note: Use at your own risk!*
@@ -645,7 +716,7 @@ extension PumpOpsSession {
     ///   - units: The number of units to deliver
     ///   - cancelExistingTemp: If true, additional pump commands will be issued to clear any running temp basal. Defaults to false.
     /// - Returns: SetBolusError if the command failed
-    public func setNormalBolus(units: Double) -> SetBolusError? {
+    private func setNormalBolusOnce(units: Double) -> SetBolusError? {
         let pumpModel: PumpModel
 
         do {
