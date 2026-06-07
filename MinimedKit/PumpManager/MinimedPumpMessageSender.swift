@@ -163,4 +163,8 @@ struct MinimedPumpMessageSender: PumpMessageSender {
             throw PumpOpsError.deviceError(error)
         }
     }
+
+    func logComms(_ message: String) {
+        commsLogger?.didError(message)
+    }
 }

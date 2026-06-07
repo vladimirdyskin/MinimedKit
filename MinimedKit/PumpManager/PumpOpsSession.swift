@@ -528,7 +528,7 @@ extension PumpOpsSession {
             }
             usleep(backoffsUsec[min(attempt, backoffsUsec.count - 1)])
             attempt += 1
-            NSLog("setTempBasal persistent retry, attempt %d/%d", attempt + 1, maxAttempts)
+            messageSender.logComms(String(format: "setTempBasal persistent retry, attempt %d/%d", attempt + 1, maxAttempts))
             last = setTempBasalOnce(unitsPerHour, duration: duration)
         }
         return last
@@ -682,7 +682,7 @@ extension PumpOpsSession {
                 }
             }
             attempt += 1
-            NSLog("setNormalBolus persistent retry, attempt %d/%d", attempt + 1, maxAttempts)
+            messageSender.logComms(String(format: "setNormalBolus persistent retry, attempt %d/%d", attempt + 1, maxAttempts))
             last = setNormalBolusOnce(units: units)
         }
         return last

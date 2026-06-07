@@ -71,5 +71,12 @@ public protocol PumpMessageSender {
 
     /// - Throws: PumpOpsError.deviceError
     func listenForPacket(onChannel channel: Int, timeout: TimeInterval) throws -> RFPacket?
+
+    /// Диагностическое сообщение в общий лог связи (попадает в файловый лог приложения).
+    func logComms(_ message: String)
+}
+
+public extension PumpMessageSender {
+    func logComms(_: String) {}
 }
 
