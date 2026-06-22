@@ -17,7 +17,7 @@ extension HistoryPage {
     ///     - events: The matching events
     ///     - hasMoreEvents: Whether the next page likely contains events after the specified start date
     ///     - cancelledEarly:
-    func timestampedEvents(after start: Date, timeZone: TimeZone, model: PumpModel) -> (events: [TimestampedHistoryEvent], hasMoreEvents: Bool, cancelledEarly: Bool) {
+    public func timestampedEvents(after start: Date, timeZone: TimeZone, model: PumpModel) -> (events: [TimestampedHistoryEvent], hasMoreEvents: Bool, cancelledEarly: Bool) {
         // Start with some time in the future, to account for the condition when the pump's clock is ahead
         // of ours by a small amount.
         var timeCursor = Date(timeIntervalSinceNow: TimeInterval(minutes: 60))
