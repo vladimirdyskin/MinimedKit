@@ -10,8 +10,8 @@ import LoopKit
 
 
 // Bridges support for MinimedKit data types
-extension Collection where Element == TimestampedHistoryEvent {
-    
+public extension Collection where Element == TimestampedHistoryEvent {
+
     func pumpEvents(from model: PumpModel) -> [NewPumpEvent] {
         var events: [NewPumpEvent] = []
         var lastTempBasal: DoseEntry?
