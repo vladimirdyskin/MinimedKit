@@ -64,7 +64,7 @@ public struct UnfinalizedDose: RawRepresentable, Equatable, CustomStringConverti
         return units
     }
 
-    init(bolusAmount: Double, startTime: Date, duration: TimeInterval, insulinType: InsulinType?, automatic: Bool, isReconciledWithHistory: Bool = false) {
+    public init(bolusAmount: Double, startTime: Date, duration: TimeInterval, insulinType: InsulinType?, automatic: Bool, isReconciledWithHistory: Bool = false) {
         self.doseType = .bolus
         self.units = bolusAmount
         self.startTime = startTime
@@ -76,7 +76,7 @@ public struct UnfinalizedDose: RawRepresentable, Equatable, CustomStringConverti
         self.automatic = automatic
     }
 
-    init(tempBasalRate: Double, startTime: Date, duration: TimeInterval, insulinType: InsulinType?, automatic: Bool = true, isReconciledWithHistory: Bool = false) {
+    public init(tempBasalRate: Double, startTime: Date, duration: TimeInterval, insulinType: InsulinType?, automatic: Bool = true, isReconciledWithHistory: Bool = false) {
         self.doseType = .tempBasal
         self.units = tempBasalRate * duration.hours
         self.startTime = startTime
@@ -280,7 +280,7 @@ extension NewPumpEvent {
 // MARK: - DoseEntry
 
 extension DoseEntry {
-    init (_ dose: UnfinalizedDose, forceFinalization: Bool = false) {
+    public init (_ dose: UnfinalizedDose, forceFinalization: Bool = false) {
         switch dose.doseType {
         case .bolus:
             self = DoseEntry(type: .bolus, startDate: dose.startTime, endDate: dose.finishTime, value: dose.programmedUnits ?? dose.units, unit: .units, deliveredUnits: dose.finalizedUnits, insulinType: dose.insulinType, automatic: dose.automatic, isMutable: !dose.isReconciledWithHistory && !forceFinalization)
